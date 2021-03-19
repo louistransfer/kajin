@@ -31,23 +31,24 @@ which will open the GUI.
 
 If you prefer to use the application on a command line, the app supports the following arguments:
 
--e --email -> a string containing the email of the Jinka account
--p --password -> a password containing
--l --load -> 1 to load existing credentials, 0 not to load them. If 0 is specified, the email and password arguments must be filled
--s --save -> 1 to save the credentials specified in the email and password fields
--x --expired -> 1 to clean all of the expired offers, 0 not to do it. This operation can be long to run as the script checks all of the active offers for expiration.
+``` -e --email ``` -> a string containing the email of the Jinka account  
+``` -p --password ``` -> a password containing  
+``` -l --load ``` -> 1 to load existing credentials, 0 not to load them. If 0 is specified, the email and password arguments must be filled  
+``` -s --save ```-> 1 to save the credentials specified in the email and password fields  
+``` -x --expired ``` -> 1 to clean all of the expired offers, 0 not to do it. This operation can be long to run as the script checks all of the active offers for expiration.  
 
-Entering any argument will bypass the GUI. By default, load, save and expired are equal to 0.
+Entering any argument will bypass the GUI. By default, load, save and expired are equal to 0.  
 
-Examples :
+Examples :  
 
 - Loading existing credentials and removing expired offers :
 ``` python main.py -l 1 -x 1 ```
 
-- Writing new credentials, saving them and avoiding a check for expired offers :
-``` python main.py -e 'john.doe@gmail.com' -p '1234' -s 1 -x 0 ```
-or
-``` python main.py -e 'john.doe@gmail.com' -p '1234' -s 1```
+- Writing new credentials, saving them and avoiding a check for expired offers : 
+ 
+``` python main.py -e 'john.doe@gmail.com' -p '1234' -s 1 -x 0 ```  
+or  
+``` python main.py -e 'john.doe@gmail.com' -p '1234' -s 1```  
 
 # Disclaimer
 
