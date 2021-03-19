@@ -28,18 +28,12 @@ parser.add_argument('-x', '--expired', nargs='?', const=1,
 
 args = parser.parse_args()
 
-# path_list = os.getcwd().split(os.sep)
-# target_index = path_list.index('kajin')
-# running_dir = os.path.join('.', path_list[target_index])
-# path_list = path_list[:target_index + 1]
-# if os.name=='nt':
-#     path_list[0] += '/'
-# os.chdir(os.path.join(os.sep, *path_list))
 
-current_dir = os.path.dirname(os.getcwd())
-path_list = current_dir.split()
+current_dir = os.getcwd()
+path_list = current_dir.split(os.sep)
+
 if path_list[-1]=='src':
-    current_dir = '..'
+    current_dir = os.path.join(current_dir, '..')
     os.chdir(current_dir)
 
 # Path to files 
@@ -58,7 +52,7 @@ DATA_PATH = os.path.join(os.getcwd(), 'data')
 if os.path.exists(LOG_PATH):
     os.remove(LOG_PATH)
 
-if os.path.exists(DATABASES_PATH)==False:
+if not os.path.exists(DATABASES_PATH):
     os.mkdir(DATABASES_PATH)
 
 
