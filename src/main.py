@@ -2,14 +2,12 @@ import json
 import argparse
 import os
 import warnings
-#from numpy.core.function_base import _logspace_dispatcher
 
-import pandas as pd
 import PySimpleGUI as sg
 from logzero import logger, logfile
 
 from api_utils import authenticate, get_alerts, get_all_apparts, get_all_links, remove_expired
-from processing_utils import features_engineering, cleaner, update_history_df
+from processing_utils import features_engineering, cleaner, update_history_df, append_history_df
 
 parser = argparse.ArgumentParser(description='Override the GUI if needed.')
 # parser.add_argument('override', metavar='N', type=bool, nargs='+',
@@ -55,7 +53,6 @@ if os.path.exists(LOG_PATH):
 if not os.path.exists(DATABASES_PATH):
     os.mkdir(DATABASES_PATH)
 
-
 if not os.path.exists(DATA_PATH):
     os.mkdir(DATA_PATH)
 
@@ -72,19 +69,19 @@ def run_all(email, password, expired):
     df_apparts = cleaner(df_apparts)
     df_apparts = features_engineering(df_apparts)
     df_apparts = df_apparts.set_index('id')
-    df_history = update_history_df(df_apparts, HISTORY_PATH)
+    df_history = append_history_df(df_apparts, HISTORY_PATH)
 
-    df_apparts = get_all_links(s, df_apparts, expired, APPARTS_DB_PATH)
+    df_apparts, new_expired_list = get_all_links(s, df_apparts, expired, APPARTS_DB_PATH)
 
     if expired:
-        df_apparts = remove_expired(s, df_apparts, LAST_DELETED_PATH)
+        df_history = update_history_df(df_apparts, df_history, new_expired_list)
+        df_apparts = remove_expired(s, df_apparts, new_expired_list, LAST_DELETED_PATH)
 
     df_apparts.to_csv(APPARTS_CSV_PATH, sep='@', encoding='utf-8')
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         df_apparts.to_excel(APPARTS_XLSX_PATH, encoding='utf-8')
     df_history.to_csv(HISTORY_PATH, sep='@', encoding='utf-8')
-
 
 def create_main_window(credentials_file=CREDENTIALS_FILE):
     sg.theme()

@@ -1,6 +1,8 @@
 import pandas as pd
 import requests
 import os
+import time
+from datetime import datetime
 from bs4 import BeautifulSoup
 from tqdm import tqdm, trange
 from logzero import logger
@@ -62,10 +64,11 @@ def get_alerts(session, headers):
     df_alerts = pd.DataFrame(data=data_dict)  
     return df_alerts
 
-def get_appart_response(session, alert_id, appart_id):
+def get_appart_response(session, row_tuple):
 
-    alert_id = str(alert_id)
-    appart_id = str(appart_id)
+    alert_id = row_tuple[1]['alert_id']
+    appart_id = str(row_tuple[0])
+
     headers = {
     'authority': 'api.jinka.fr',
     'upgrade-insecure-requests': '1',
@@ -83,51 +86,59 @@ def get_appart_response(session, alert_id, appart_id):
         ('ad', appart_id),
         ('alert_token', alert_id),
     )
-
-    response = session.get('https://api.jinka.fr/alert_result_view_ad', headers=headers, params=params)
+    try:
+        response = session.get('https://api.jinka.fr/alert_result_view_ad', headers=headers, params=params)
+    except:
+        logger.warn('Connection interrupted by Jinka. Waiting 30 seconds before retrying.')
+        time.sleep(30)
+        logger.warn('Retrying to establish the connection...')
+        response = session.get('https://api.jinka.fr/alert_result_view_ad', headers=headers, params=params)
     return response
 
-def expired_checker(response, source):
+def expired_checker(response, row_tuple):
 
-    is_expired = False
-    if source in ['logic-immo', 'leboncoin', 'century21', 'meilleursagents', 'locservice', 'lagenceblue']:
+    source = row_tuple[1]['source']
+    true_expired_date = None
+
+    if source in ['logic-immo', 'century21', 'meilleursagents', 'locservice', 'lagenceblue']:
         parsed_url = BeautifulSoup(response.text, 'html.parser')
-    elif source in ['pap', 'seloger', 'paruvendu', 'laforet', 'orpi', 'avendrealouer']:
+    elif source in ['pap', 'seloger', 'paruvendu', 'laforet', 'orpi', 'avendrealouer', 'fnaim', 'locatair']:
         parsed_url = response.url.split('/')
+    elif source=='leboncoin':
+        true_expired_date = row_tuple[1]['expired_at']
     else:
-        return is_expired
+        return true_expired_date
 
     if source == 'logic-immo':
         item = parsed_url.find_all(class_="expiredTxt")
         if len(item)!=0:
-            is_expired = True
+            true_expired_date = datetime.now()
     
     if source == 'pap':
         if parsed_url[3] == 'annonce':
-            is_expired = True
+            true_expired_date = datetime.now()
 
     if source == 'seloger':
         if parsed_url[-1] == '#expiree':
-            is_expired = True
-
-    if source == 'leboncoin':
-        item = parsed_url.find_all(class_="_1oejz _1hnil _1-TTU _35DXM")
-        if len(item)!=0:
-            is_expired = True
+            true_expired_date = datetime.now()
 
     if source == 'explorimmo':
         pass
 
     if source == 'paruvendu':
         if parsed_url[-1] == '#showError404':
-            is_expired = True
+            true_expired_date = datetime.now()
 
 
     if source == 'century21':
         item = parsed_url.find_all(class_="content_msg")
+        item2 = parsed_url.find_all(class_="tw-font-semibold tw-text-lg")
         if len(item)!=0:
             if item[0].strong.text == "Nous sommes désolés, la page à laquelle vous tentez d'accéder n'existe pas.":
-                is_expired = True
+                true_expired_date = datetime.now()
+        if len(item2)!=0:
+            if item2[0].text.strip() == "Cette annonce est désactivée, retrouvez ci-dessous une sélection de biens s'en rapprochant.":
+                true_expired_date = datetime.now()
 
     if source == 'stephaneplaza':
         pass
@@ -135,7 +146,7 @@ def expired_checker(response, source):
     if source == 'meilleursagents':
         item = parsed_url.find_all(class_="error-page")
         if len(item)!=0:
-            is_expired = True
+            true_expired_date = datetime.now()
 
     if source == 'flatlooker':
         pass
@@ -146,54 +157,56 @@ def expired_checker(response, source):
     if source ==  'locservice':
         item = parsed_url.find_all(class_="louerecemment")
         if len(item)!=0:
-            is_expired = True
+            true_expired_date = datetime.now()
 
     if source ==  'guyhoquet':
         pass
 
     if source == 'laforet':
         if parsed_url[3] == 'ville':
-            is_expired = True
+            true_expired_date = datetime.now()
 
     if source == 'lagenceblue':
         item = parsed_url.find_all(class_="label label-warning")
         if len(item)!=0:
-            is_expired = True
+            true_expired_date = datetime.now()
         
-
     if source == 'avendrealouer':
         if '#expiree' in parsed_url[-1]:
-           is_expired = True 
+           true_expired_date = datetime.now()
 
     if source == 'orpi':
         if parsed_url[-2] == 'louer-appartement':
-           is_expired = True 
+           true_expired_date = datetime.now() 
 
     if source ==  'parisattitude':
         pass
 
     if source == 'fnaim':
-        pass
-
+        if len(parsed_url) >= 3:
+            if parsed_url[3] != 'annonce-immobiliere':
+                true_expired_date = datetime.now()
+        
     if source == 'erafrance':
         pass
     
-    return is_expired
+    return true_expired_date
+
 
 def get_all_links(session, df, expired, appart_db_path):
 
+    new_expired_list = []
     
     if os.path.exists(appart_db_path) and (expired==False):
         logger.info('Found a preexisting links database.')
         df['link'] = None
-        df['is_expired'] = False
+        df['true_expired_at'] = None
         df_already_processed = pd.read_json(appart_db_path, orient='columns')
 
         unprocessed_index = set(df.index) - set(df_already_processed.index)
         processed_index = set(df.index).intersection(df_already_processed.index)
         df.loc[processed_index, 'link'] = df_already_processed['link']
-        target_alert_ids = df.loc[unprocessed_index, 'alert_id'].tolist()
-        apparts_source = df.loc[unprocessed_index, 'source'].tolist()
+        df.loc[processed_index, 'true_expired_at'] = df_already_processed['true_expired_at']
 
     else:
         if os.path.exists(appart_db_path)==False:
@@ -202,8 +215,7 @@ def get_all_links(session, df, expired, appart_db_path):
             logger.warn('Replacing the previous database in order to check for apparts expiration.')
         unprocessed_index = df.index
         df_already_processed = pd.DataFrame()
-        target_alert_ids, unprocessed_index = df['alert_id'].tolist(), df.index
-        apparts_source = df['source'].tolist()
+
 
     logger.info(f'{len(unprocessed_index)} new links have been detected.')
 
@@ -212,42 +224,47 @@ def get_all_links(session, df, expired, appart_db_path):
         expiration_list = list(unprocessed_index.copy())
         
         idx = 0
-        for alert_id, appart_id, source in tqdm(zip(target_alert_ids, unprocessed_index, apparts_source), total=len(links)) :
-            response = get_appart_response(session, alert_id, appart_id)
-            is_expired = expired_checker(response, source)
+        for row_tuple in tqdm(df.iterrows(), total=len(df)) :
+
+            response = get_appart_response(session, row_tuple)
+            true_expiration_date = expired_checker(response, row_tuple)
             true_url = response.url
             links[idx] = true_url
-            expiration_list[idx] = is_expired
+            expiration_list[idx] = true_expiration_date
+            if true_expiration_date != None:
+                new_expired_list.append(row_tuple[0])
             idx += 1
 
         df.loc[unprocessed_index, 'link'] = links
-        df.loc[unprocessed_index, 'is_expired'] = expiration_list
+        df.loc[unprocessed_index, 'true_expired_at'] = expiration_list
         
         df_to_append = df.loc[unprocessed_index, ['link']]
 
         df_already_processed = df_already_processed.append(df_to_append)
         df_already_processed.to_json(appart_db_path, orient='columns')
 
-        nb_expired = len(df[df['is_expired']==True])
+        nb_expired = len(df[df['true_expired_at'].notna()])
         logger.warn(f'{nb_expired} appartments have expired.')
 
-    return df
+    return df, new_expired_list
 
-def remove_expired(session, df, last_deleted_path):
 
-    df_expired = df[df['is_expired']]
+def remove_expired(session, df, new_expired_list, last_deleted_path):
+
+    df_expired = df.loc[new_expired_list, :]
 
     logger.info('Starting the cleaning of expired offers.')
 
     for appart_id, row in tqdm(df_expired.iterrows()):
         post_url = 'https://api.jinka.fr/apiv2/alert/' + row['alert_id'] + '/abuses'
         data = {'ad_id':appart_id, 'reason':'ad_link_404'}
+        session.post(post_url, data=data)
 
-        response = session.post(post_url, data=data)
-    
+
     df_expired.to_json(last_deleted_path, orient='columns')
-    cleaned_df = df[df['is_expired']==False]
-    logger.info('Finished cleaning the expired appartments.')
+    cleaned_df = df[df['true_expired_at'].isna()]
+
+    logger.info(f'Finished cleaning the {len(new_expired_list)} expired appartments.')
     return cleaned_df
 
 

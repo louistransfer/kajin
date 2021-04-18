@@ -31,7 +31,7 @@ def features_engineering(df):
     df = df.drop(columns=['previous_rent', 'lat', 'lng'])
     return df 
 
-def update_history_df(df, history_path):
+def append_history_df(df, history_path):
     if os.path.exists(history_path):
         df_history = pd.read_csv(history_path, encoding='utf-8', sep='@', index_col=['id'])
     else:
@@ -40,4 +40,10 @@ def update_history_df(df, history_path):
     new_entries = set(df.index) - set(df_history.index)
     df_to_append = df.loc[new_entries, :]
     df_history = df_history.append(df_to_append)
+    return df_history
+
+def update_history_df(df, df_history, new_expired_list):
+
+    updated_entries = df.loc[new_expired_list, :]
+    df_history.loc[new_expired_list, 'true_expired_at'] = updated_entries['true_expired_at']
     return df_history
