@@ -3,6 +3,5 @@ requests
 bs4
 tqdm
 logzero
-itertools
 pysimplegui
 openpyxl
