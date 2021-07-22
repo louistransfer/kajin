@@ -33,7 +33,7 @@ def features_engineering(df):
 
 def append_history_df(df, history_path):
     if os.path.exists(history_path):
-        df_history = pd.read_csv(history_path, encoding='utf-8', sep='@', index_col=['id'])
+        df_history = pd.read_csv(history_path, encoding='utf-8', sep=',', index_col=['id'])
     else:
         df_history = pd.DataFrame(columns=df.columns)
 

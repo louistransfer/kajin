@@ -50,7 +50,7 @@ def get_alerts(session, headers):
         data_dict['user_name'].append(alert['user_name'])
         data_dict['ads_per_day'].append(alert['estimated_ads_per_day'])
 
-        root_url = 'https://api.jinka.fr/apiv2/alert/' + str(alert['id']) + '/dashboard' 
+        root_url = 'https://api.jinka.fr/apiv2/alert/' + str(alert['id']) + '/dashboard'
 
         r_pagination = session.get(root_url, headers=headers)
         pagination_data = r_pagination.json()['pagination']
@@ -64,7 +64,7 @@ def get_alerts(session, headers):
 
         logger.info(f'{counter+1} / {len(r_alerts.json())} alerts have been processed.')
 
-    df_alerts = pd.DataFrame(data=data_dict)  
+    df_alerts = pd.DataFrame(data=data_dict)
     return df_alerts
 
 
@@ -122,7 +122,7 @@ def expired_checker(response, row_tuple):
         item = parsed_url.find_all(class_="expiredTxt")
         if len(item) != 0:
             true_expired_date = datetime.now()
-    
+
     if source == 'pap':
         if parsed_url[3] == 'annonce':
             true_expired_date = datetime.now()
@@ -178,14 +178,14 @@ def expired_checker(response, row_tuple):
         item = parsed_url.find_all(class_="label label-warning")
         if len(item) != 0:
             true_expired_date = datetime.now()
-        
+
     if source == 'avendrealouer':
         if '#expiree' in parsed_url[-1]:
            true_expired_date = datetime.now()
 
     if source == 'orpi':
         if parsed_url[-2] == 'louer-appartement':
-           true_expired_date = datetime.now() 
+           true_expired_date = datetime.now()
 
     if source == 'parisattitude':
         pass
@@ -194,18 +194,18 @@ def expired_checker(response, row_tuple):
         if len(parsed_url) >= 3:
             if parsed_url[3] != 'annonce-immobiliere':
                 true_expired_date = datetime.now()
-        
+
     if source == 'erafrance':
         pass
-    
+
     return true_expired_date
 
 
 def get_all_links(session, df, expired, appart_db_path):
 
     new_expired_list = []
-    
-    if os.path.exists(appart_db_path) and (expired==False):
+
+    if os.path.exists(appart_db_path) and (expired == False):
         logger.info('Found a preexisting links database.')
         df['link'] = None
         df['true_expired_at'] = None
@@ -217,7 +217,7 @@ def get_all_links(session, df, expired, appart_db_path):
         df.loc[processed_index, 'true_expired_at'] = df_already_processed['true_expired_at']
 
     else:
-        if os.path.exists(appart_db_path)==False:
+        if os.path.exists(appart_db_path) == False:
             logger.warn('No preexisting database has been found, generating a new one.')
         elif expired:
             logger.warn('Replacing the previous database in order to check for apparts expiration.')
@@ -229,9 +229,9 @@ def get_all_links(session, df, expired, appart_db_path):
     if len(unprocessed_index) != 0:
         links = list(unprocessed_index.copy())
         expiration_list = list(unprocessed_index.copy())
-        
+
         idx = 0
-        for row_tuple in tqdm(df.iterrows(), total=len(df)) :
+        for row_tuple in tqdm(df.iterrows(), total=len(df)):
 
             response = get_appart_response(session, row_tuple)
             true_expiration_date = expired_checker(response, row_tuple)
@@ -244,8 +244,8 @@ def get_all_links(session, df, expired, appart_db_path):
 
         df.loc[unprocessed_index, 'link'] = links
         df.loc[unprocessed_index, 'true_expired_at'] = expiration_list
-        
-        df_to_append = df.loc[unprocessed_index, ['link']]
+
+        df_to_append = df.loc[unprocessed_index, ['link', 'true_expired_at']]
 
         df_already_processed = df_already_processed.append(df_to_append)
         df_already_processed.to_json(appart_db_path, orient='columns')
@@ -276,7 +276,7 @@ def remove_expired(session, df, new_expired_list, last_deleted_path):
 
 
 def get_apparts(session, headers, alert_id, nb_pages):
-    root_url = 'https://api.jinka.fr/apiv2/alert/' + str(alert_id) + '/dashboard' 
+    root_url = 'https://api.jinka.fr/apiv2/alert/' + str(alert_id) + '/dashboard'
 
     df_apparts = pd.DataFrame(
         columns=

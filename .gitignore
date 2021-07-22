@@ -2,7 +2,8 @@
 *.xlsx
 *.csv
 
-# Avoid pushing the creddentials and logs
+# Avoid pushing the pre-existing datas
+data/
 databases/
 
 # Byte compiled, v_env, etc.
