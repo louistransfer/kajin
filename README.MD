@@ -1,3 +1,5 @@
+The parser here originally comes from [Louis's repo](https://github.com/louistransfer/kajin)
+
 # Kajin, a Jinka wrapper
 
 ## Overview
