@@ -2,6 +2,11 @@ import os
 import itertools
 import pandas as pd
 import numpy as np
+import json
+
+
+USER_TOKEN_FILE = os.path.join('databases', 'user_token.json')
+
 
 def metro_extractor(metro_ls):
     stops_names = [x['name'] for x in metro_ls]
@@ -61,11 +66,34 @@ def metro_geo_pos_when_none(df):
         'databases/emplacement-des-gares-idf.csv',
         sep=';',
         usecols=['Geo Point', 'nom'])
-    df['real_coord'] = np.where(df['geo_coords'].isna(), 0, 1)
+    df['is_real_coord'] = np.where(df['geo_coords'].isna(), 0, 1)
     for i in range(df.shape[0]):
-        if df.iloc[i]['real_coord'] == 0:
+        if df.iloc[i]['is_real_coord'] == 0:
             closest_metro = df.iloc[i]['closest_metro']
             pos_closest_metro = df_metro_coords.loc[df_metro_coords['nom'] == closest_metro, 'Geo Point']
-            df.at[i, 'geo_coords'] = ','.join(pos_closest_metro)
+            if len(pos_closest_metro) > 0:
+                pos_closest_metro = add_noise_to_metro_pos(pos_closest_metro)
+                df.at[i, 'geo_coords'] = pos_closest_metro
+            else:
+                df.at[i, 'geo_coords'] = f'48.866667, 2.333333'
     return df
 
+
+def add_noise_to_metro_pos(series_pos_metro: pd.Series):
+    arr = np.array(series_pos_metro.values[0].split(',')).astype('float64')
+    arr += np.random.normal(0, 1e-6, 2)
+    return ', '.join(arr.astype(str))
+
+
+def all_sharing_links(df):
+    with open(USER_TOKEN_FILE, 'r') as f:
+        user_token_file = json.load(f)
+    user_token = user_token_file['-USER_TOKEN-']
+    df['sharing_link'] = df.apply(lambda row: good_link_for_sharing(row['id'], user_token), axis=1)
+    return df
+
+
+def good_link_for_sharing(ad, user_token):
+    good_link = f'https://www.jinka.fr/alert_result?' \
+                 f'token={user_token}&ad={ad}&from=dashboard_card&from_alert_filter=all&from_alert_page=1'
+    return good_link

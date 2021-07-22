@@ -10,7 +10,7 @@ from logzero import logger, logfile
 
 from api_utils import authenticate, get_alerts, get_all_apparts, get_all_links, remove_expired
 from processing_utils import features_engineering, cleaner, update_history_df, append_history_df, \
-    metro_geo_pos_when_none
+    metro_geo_pos_when_none, all_sharing_links
 
 parser = argparse.ArgumentParser(description='Override the GUI if needed.')
 # parser.add_argument('override', metavar='N', type=bool, nargs='+',
@@ -72,8 +72,7 @@ def run_all(email, password, expired):
 
 # Better features for df_aparts
     df_apparts = metro_geo_pos_when_none(df_apparts)
-
-
+    df_apparts = all_sharing_links(df_apparts)
 
     df_history = append_history_df(df_apparts, HISTORY_PATH)
 
