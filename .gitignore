@@ -1,0 +1,11 @@
+# Avoid pushing the datasets
+*.xlsx
+*.csv
+
+# Avoid pushing the creddentials and logs
+databases/
+
+# Byte compiled, v_env, etc.
+__pycache__/
+.idea/
+venv_jinka/
