@@ -9,7 +9,8 @@ import pandas as pd
 from logzero import logger, logfile
 
 from api_utils import authenticate, get_alerts, get_all_apparts, get_all_links, remove_expired
-from processing_utils import features_engineering, cleaner, update_history_df, append_history_df
+from processing_utils import features_engineering, cleaner, update_history_df, append_history_df, \
+    metro_geo_pos_when_none
 
 parser = argparse.ArgumentParser(description='Override the GUI if needed.')
 # parser.add_argument('override', metavar='N', type=bool, nargs='+',
@@ -68,7 +69,12 @@ def run_all(email, password, expired):
     df_apparts = get_all_apparts(df_alerts, s, headers)
     df_apparts = cleaner(df_apparts)
     df_apparts = features_engineering(df_apparts)
-    # df_apparts = df_apparts.set_index('id')
+
+# Better features for df_aparts
+    df_apparts = metro_geo_pos_when_none(df_apparts)
+
+
+
     df_history = append_history_df(df_apparts, HISTORY_PATH)
 
     df_apparts, new_expired_list = get_all_links(s, df_apparts, expired, APPARTS_DB_PATH)
