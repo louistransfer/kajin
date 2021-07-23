@@ -81,7 +81,8 @@ def metro_geo_pos_when_none(df):
 
 def add_noise_to_metro_pos(series_pos_metro: pd.Series):
     arr = np.array(series_pos_metro.values[0].split(',')).astype('float64')
-    arr += np.random.normal(0, 1e-6, 2)
+    arr += np.random.normal(0, 1e-3, 2)
+    arr = np.around(arr, decimals=4)
     return ', '.join(arr.astype(str))
 
 
