@@ -19,6 +19,8 @@ parser.add_argument('-e', '--email',
                     help='The Jinka account email address')
 parser.add_argument('-p', '--password',
                     help='The Jinka account password')
+parser.add_argument('-u', '--user_token',
+                    help='Your personnal user token (see Readme for more information)')
 parser.add_argument('-l', '--load', type=int, nargs='?',
                     help='Whether to load existing credentials: 0 or 1')
 parser.add_argument('-s', '--save', type=int, nargs='?',
@@ -72,7 +74,7 @@ def run_all(email, password, expired):
 
 # Better features for df_aparts
     df_apparts = metro_geo_pos_when_none(df_apparts)
-    df_apparts = all_sharing_links(df_apparts)
+    df_apparts = all_sharing_links(df_apparts, user_token)
 
     df_history = append_history_df(df_apparts, HISTORY_PATH)
 
@@ -111,9 +113,11 @@ def create_main_window(credentials_file=CREDENTIALS_FILE):
             credentials = json.load(f)
         default_email = credentials['-EMAIL-']
         default_password = credentials['-PASSWORD-']
+        default_token = credentials['-USER_TOKEN-']
     else:
         default_email = ''
         default_password = ''
+        default_token = ''
 
     def TextLabel(text, size):
         return sg.Text(text + ':', justification='r', size=size)
@@ -123,6 +127,8 @@ def create_main_window(credentials_file=CREDENTIALS_FILE):
               [TextLabel('Login email', size=(25, 1)), sg.InputText(key='-EMAIL-', default_text=default_email)],
               [TextLabel('Password', size=(25, 1)),
                sg.InputText(key='-PASSWORD-', default_text=default_password, password_char='*')],
+              [TextLabel('User token (see Readme)', size=(25, 1)),
+               sg.InputText(key='-USER_TOKEN-', default_text=default_token)],
               [sg.Checkbox('Clean expired appartments', size=(10, 1), key='-EXPIRED-')],
               # [TextLabel('Theme', size=(25,1)), sg.Combo(sg.theme_list(), key='-THEME-', size=(20, 20), default_text=default_theme)],
               [sg.B('Run Application'), sg.B('Save credentials'), sg.B('Exit')]]
@@ -132,11 +138,16 @@ def create_main_window(credentials_file=CREDENTIALS_FILE):
 
 if __name__ == '__main__':
 
-    if (args.email == None) and (args.password == None) and (args.load == None) and (args.save == None) and (
-            args.expired == None):
+    if ((args.email is None)
+        & (args.password is None)
+        & (args.user_token is None)
+        & (args.load is None)
+        & (args.save is None)
+        & (args.expired is None)):
+
         window = None
         while True:
-            if window == None:
+            if window is None:
                 window = create_main_window()
                 event, credentials = window.read()
 
@@ -144,6 +155,7 @@ if __name__ == '__main__':
                 logger.info('Launching application')
                 password = credentials['-PASSWORD-']
                 email = credentials['-EMAIL-']
+                user_token = credentials['-USER_TOKEN-']
                 expired = credentials['-EXPIRED-']
                 window.close()
                 run_all(email, password, expired=expired)
@@ -164,14 +176,16 @@ if __name__ == '__main__':
                     credentials = json.load(f)
                 email = credentials['-EMAIL-']
                 password = credentials['-PASSWORD-']
+                user_token = credentials['-USER_TOKEN-']
 
         else:
             email = args.email
             password = args.password
+            user_token = args.user_token
 
         if args.save == True:
-            credentials = {'-EMAIL-': email, '-PASSWORD-': password}
+            credentials = {'-EMAIL-': email, '-PASSWORD-': password, '-USER_TOKEN': user_token}
             with open(CREDENTIALS_FILE, 'w') as f:
                 json.dump(credentials, f)
 
-        run_all(email, password, expired=args.expired)
+        run_all(email, password, user_token, expired=args.expired)

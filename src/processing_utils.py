@@ -5,7 +5,7 @@ import numpy as np
 import json
 
 
-USER_TOKEN_FILE = os.path.join('databases', 'user_token.json')
+USER_TOKEN_FILE = os.path.join('databases', 'credentials.json')
 
 
 def metro_extractor(metro_ls):
@@ -86,10 +86,7 @@ def add_noise_to_metro_pos(series_pos_metro: pd.Series):
     return ', '.join(arr.astype(str))
 
 
-def all_sharing_links(df):
-    with open(USER_TOKEN_FILE, 'r') as f:
-        user_token_file = json.load(f)
-    user_token = user_token_file['-USER_TOKEN-']
+def all_sharing_links(df, user_token):
     df['sharing_link'] = df.apply(lambda row: good_link_for_sharing(row['id'], user_token), axis=1)
     return df
 
