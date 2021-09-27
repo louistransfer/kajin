@@ -2,7 +2,7 @@
 
 ## Overview
 
-Kajin is a wrapper for the Jinka API ([https://www.jinka.fr/]). It directly authentificates with a Jinka account and grabs the list of appartments found on configured alerts, then returns a dataset as a CSV and an Excel file. The dataset contains various pieces of data such as the area, the rent or the price per square meter.
+Kajin is a wrapper for the Jinka API ([https://www.jinka.fr/]). It directly authentificates with a Jinka account and grabs the list of appartments found via the configured alerts and then returns a dataset as a CSV and an Excel file. The dataset contains various pieces of data such as the area, the rent or the price per square meter.
 
 This project was created during a period of strong demand on Paris for flats, which made navigation difficult on the website. This app aims to tackle this issue by generating a dataset which can then be used on a visualisation tool such as Data Studio, Tableau or PowerBI.
 
@@ -23,6 +23,10 @@ You can install all of the necessary packages with the following command:
 
 # Use
 
+In order to have links that you can share with other people, you need to have your Jinka user_token. To get it, go to [Jinka's website](https://www.jinka.fr/asrenter/alert/list) and look at your alerts. Then click on any offer, your token will be on the url as on the following image.
+![image](https://user-images.githubusercontent.com/71875531/126765961-d3a300f5-d71a-433c-8805-9e5df6828d8e.png)
+
+
 You can launch the application from the src folder by running :
 
 ``` python main.py ```
@@ -33,6 +37,7 @@ If you prefer to use the application on a command line, the app supports the fol
 
 ``` -e --email ``` -> a string containing the email   
 ``` -p --password ``` -> a string containing the password of the Jinka account  
+``` -u --user_token ``` -> a string containing the token of the Jinka account that will allow to have sharable links  
 ``` -l --load ``` -> 1 to load existing credentials, 0 not to load them. If 0 is specified, the email and password arguments must be filled  
 ``` -s --save ```-> 1 to save the credentials specified in the email and password fields  
 ``` -x --expired ``` -> 1 to clean all of the expired offers, 0 not to do it. This operation can be long to run as the script checks all of the active offers for expiration.  

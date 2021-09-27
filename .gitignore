@@ -1,0 +1,15 @@
+# Avoid pushing the datasets
+*.xlsx
+*.csv
+
+# Avoid pushing the pre-existing datas
+data/
+databases/appart_links_db.json
+databases/credentials.json
+databases/last_deleted_apparts.json
+databases/logs.log
+
+# Byte compiled, v_env, etc.
+__pycache__/
+.idea/
+venv_jinka/
