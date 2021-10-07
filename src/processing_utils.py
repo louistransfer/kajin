@@ -27,16 +27,14 @@ def features_engineering(df):
     df['price_m2'] = df['rent'] / df['area']
     df['rent_evolution'] = df['previous_rent'] - df['rent']
     df['geo_coords'] = df['lat'].astype('string') + ', ' + df['lng'].astype('string')
-
     df = df.drop(columns=['previous_rent', 'lat', 'lng'])
     return df 
 
-def append_history_df(df, history_path):
+def append_history_df(df, history_path, sep=';'):
     if os.path.exists(history_path):
-        df_history = pd.read_csv(history_path, encoding='utf-8', sep='@', index_col=['id'])
+        df_history = pd.read_csv(history_path, encoding='utf-8', sep=sep, index_col=['id'])
     else:
-        df_history = pd.DataFrame(columns=df.columns)
-
+        df_history = pd.DataFrame(columns=df.columns).rename_axis(index='id')
     new_entries = set(df.index) - set(df_history.index)
     df_to_append = df.loc[new_entries, :]
     df_history = df_history.append(df_to_append)

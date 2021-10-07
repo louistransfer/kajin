@@ -202,7 +202,6 @@ def get_all_links(session, df, expired, appart_db_path):
         df['link'] = None
         df['true_expired_at'] = None
         df_already_processed = pd.read_json(appart_db_path, orient='columns')
-
         unprocessed_index = set(df.index) - set(df_already_processed.index)
         processed_index = set(df.index).intersection(df_already_processed.index)
         df.loc[processed_index, 'link'] = df_already_processed['link']
@@ -215,17 +214,13 @@ def get_all_links(session, df, expired, appart_db_path):
             logger.warn('Replacing the previous database in order to check for apparts expiration.')
         unprocessed_index = df.index
         df_already_processed = pd.DataFrame()
-
-
     logger.info(f'{len(unprocessed_index)} new links have been detected.')
 
     if len(unprocessed_index)!=0:
         links = list(unprocessed_index.copy())
         expiration_list = list(unprocessed_index.copy())
-        
         idx = 0
         for row_tuple in tqdm(df.iterrows(), total=len(df)) :
-
             response = get_appart_response(session, row_tuple)
             true_expiration_date = expired_checker(response, row_tuple)
             true_url = response.url
@@ -234,6 +229,8 @@ def get_all_links(session, df, expired, appart_db_path):
             if true_expiration_date != None:
                 new_expired_list.append(row_tuple[0])
             idx += 1
+        
+        #logger.debug(f'Index of the DF : {df.index}')
 
         df.loc[unprocessed_index, 'link'] = links
         df.loc[unprocessed_index, 'true_expired_at'] = expiration_list
@@ -259,11 +256,8 @@ def remove_expired(session, df, new_expired_list, last_deleted_path):
         post_url = 'https://api.jinka.fr/apiv2/alert/' + row['alert_id'] + '/abuses'
         data = {'ad_id':appart_id, 'reason':'ad_link_404'}
         session.post(post_url, data=data)
-
-
     df_expired.to_json(last_deleted_path, orient='columns')
     cleaned_df = df[df['true_expired_at'].isna()]
-
     logger.info(f'Finished cleaning the {len(new_expired_list)} expired appartments.')
     return cleaned_df
 
@@ -283,6 +277,7 @@ def get_apparts(session, headers, alert_id, nb_pages):
     #    logger.info(f'{counter+1} / {nb_pages} pages have been processed.')   
     return df_apparts
 
+
 def get_all_apparts(df_alerts, session, headers):
     df_final = pd.DataFrame(columns= ['id', 'source', 'source_is_partner', 'source_logo', 'source_label',
      'search_type', 'owner_type', 'rent', 'rent_max', 'area', 'room', 'bedroom', 'floor', 'type', 'buy_type',
@@ -298,4 +293,3 @@ def get_all_apparts(df_alerts, session, headers):
         df_final = df_final.append(df_alert)
         logger.info(f'Finished processing the apparts of alert n°{idx + 1}')
     return df_final
-

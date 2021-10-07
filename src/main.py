@@ -4,6 +4,7 @@ import os
 import warnings
 
 import PySimpleGUI as sg
+from gsheets_uploader import Uploader
 from logzero import logger, logfile
 
 from api_utils import authenticate, get_alerts, get_all_apparts, get_all_links, remove_expired
@@ -45,7 +46,10 @@ APPARTS_XLSX_PATH = os.path.join(os.getcwd(), 'data', 'apparts.xlsx')
 LOG_PATH = os.path.join(os.getcwd(), 'databases', 'logs.log')
 DATABASES_PATH = os.path.join(os.getcwd(), 'databases')
 DATA_PATH = os.path.join(os.getcwd(), 'data')
-
+CREDS_PATH = os.path.join(os.getcwd(), '..', '..', 'gsheets_credentials') 
+TOKEN_FILE_PATH = os.path.join(CREDS_PATH, 'token.json')
+SECRET_CLIENT_PATH = os.path.join(CREDS_PATH, 'secret_client.json')
+EXPORT_CSV_PATH = APPARTS_CSV_PATH
 
 if os.path.exists(LOG_PATH):
     os.remove(LOG_PATH)
@@ -70,22 +74,22 @@ def run_all(email, password, expired):
     df_apparts = features_engineering(df_apparts)
     df_apparts = df_apparts.set_index('id')
     df_history = append_history_df(df_apparts, HISTORY_PATH)
-
+    df_apparts = df_apparts.loc[~df_apparts.index.duplicated()]
     df_apparts, new_expired_list = get_all_links(s, df_apparts, expired, APPARTS_DB_PATH)
-
     if expired:
         df_history = update_history_df(df_apparts, df_history, new_expired_list)
         df_apparts = remove_expired(s, df_apparts, new_expired_list, LAST_DELETED_PATH)
-
-    df_apparts.to_csv(APPARTS_CSV_PATH, sep='@', encoding='utf-8')
+    df_apparts.to_csv(APPARTS_CSV_PATH, sep=';', encoding='utf-8')
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         df_apparts.to_excel(APPARTS_XLSX_PATH, encoding='utf-8')
-    df_history.to_csv(HISTORY_PATH, sep='@', encoding='utf-8')
+    df_history.to_csv(HISTORY_PATH, sep=';', encoding='utf-8')
+
+    uploader = Uploader(credentials_path=CREDS_PATH, token_file_path=TOKEN_FILE_PATH, secret_client_path=SECRET_CLIENT_PATH)
+    uploader.push_table(df_apparts, spreadsheet_id='131UoWqQwZfydMJ3yqVe-L6TY6NKtJx8zVNppo034dT4', worksheet_name='apparts', index=True)
 
 def create_main_window(credentials_file=CREDENTIALS_FILE):
     sg.theme()
-
     if os.path.exists(credentials_file):
         with open(credentials_file, 'r') as f:
             credentials = json.load(f)
