@@ -2,6 +2,7 @@ import json
 import argparse
 import os
 import warnings
+import re
 
 import PySimpleGUI as sg
 from gsheets_uploader import Uploader
@@ -9,6 +10,7 @@ from logzero import logger, logfile
 
 from api_utils import authenticate, get_alerts, get_all_apparts, get_all_links, remove_expired
 from processing_utils import features_engineering, cleaner, update_history_df, append_history_df
+from openpyxl.utils.exceptions import IllegalCharacterError
 
 parser = argparse.ArgumentParser(description='Override the GUI if needed.')
 # parser.add_argument('override', metavar='N', type=bool, nargs='+',
@@ -23,6 +25,8 @@ parser.add_argument('-s', '--save', type=int, nargs='?',
                     help='Whether to save the credentials. It requires the email and password parameters.')
 parser.add_argument('-x', '--expired', nargs='?', const=1,
                     help='Whether to remove expired offers.')
+parser.add_argument('-u', '--upload', nargs='?', const=1,
+                    help='Whether to use the gsheets-uploader package to upload to Google Sheets.')
 
 
 args = parser.parse_args()
@@ -82,11 +86,18 @@ def run_all(email, password, expired):
     df_apparts.to_csv(APPARTS_CSV_PATH, sep=';', encoding='utf-8')
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        df_apparts.to_excel(APPARTS_XLSX_PATH, encoding='utf-8')
+        try:
+            df_apparts.to_excel(APPARTS_XLSX_PATH, encoding='utf-8')
+        except IllegalCharacterError as e:
+            logger.warn("Some illegal characters were replaced in the dataframe.")
+            ILLEGAL_CHARACTERS_RE = re.compile(r'[\000-\010]|[\013-\014]|[\016-\037]')
+            df_apparts.applymap(lambda x: ILLEGAL_CHARACTERS_RE.sub(r'', x) if isinstance(x, str) else x).to_excel(APPARTS_XLSX_PATH, encoding='utf-8')
+
     df_history.to_csv(HISTORY_PATH, sep=';', encoding='utf-8')
 
-    uploader = Uploader(credentials_path=CREDS_PATH, token_file_path=TOKEN_FILE_PATH, secret_client_path=SECRET_CLIENT_PATH)
-    uploader.push_table(df_apparts, spreadsheet_id='131UoWqQwZfydMJ3yqVe-L6TY6NKtJx8zVNppo034dT4', worksheet_name='apparts', index=True)
+    if upload==1:
+        uploader = Uploader(credentials_path=CREDS_PATH, token_file_path=TOKEN_FILE_PATH, secret_client_path=SECRET_CLIENT_PATH)
+        uploader.push_table(df_apparts, spreadsheet_id='131UoWqQwZfydMJ3yqVe-L6TY6NKtJx8zVNppo034dT4', worksheet_name='apparts', index=True)
 
 def create_main_window(credentials_file=CREDENTIALS_FILE):
     sg.theme()
@@ -105,6 +116,7 @@ def create_main_window(credentials_file=CREDENTIALS_FILE):
               [TextLabel('Login email', size=(25,1)), sg.InputText(key='-EMAIL-', default_text=default_email)],
               [TextLabel('Password', size=(25,1)), sg.InputText(key='-PASSWORD-', default_text=default_password, password_char='*')],
               [sg.Checkbox('Clean expired appartments', size=(10,1), key='-EXPIRED-')],
+              [sg.Checkbox('Google Sheets upload', size=(10,1), key='-UPLOAD-')],
               #[TextLabel('Theme', size=(25,1)), sg.Combo(sg.theme_list(), key='-THEME-', size=(20, 20), default_text=default_theme)],
               [sg.B('Run Application'), sg.B('Save credentials'), sg.B('Exit') ]]
 
@@ -112,7 +124,8 @@ def create_main_window(credentials_file=CREDENTIALS_FILE):
 
 if __name__=='__main__':
     
-    if (args.email==None) and (args.password == None) and (args.load == None) and (args.save == None) and (args.expired == None):
+    if (args.email==None) and (args.password == None) and (args.load == None) and (args.save == None) and (args.expired == None) \
+     and (args.upload == None):
         window = None
         while True:
             if window == None:
@@ -124,6 +137,7 @@ if __name__=='__main__':
                 password = credentials['-PASSWORD-']
                 email = credentials['-EMAIL-']
                 expired = credentials['-EXPIRED-']
+                upload = credentials['-UPLOAD-']
                 window.close()
                 run_all(email, password, expired=expired)
                 break
