@@ -194,19 +194,16 @@ def expired_checker(response, row_tuple):
 
 
 def get_all_links(session, df, expired, appart_db_path):
-
-    new_expired_list = []
     
     if os.path.exists(appart_db_path) and (expired==False):
         logger.info('Found a preexisting links database.')
         df['link'] = None
-        df['true_expired_at'] = None
+        #df['true_expired_at'] = None
         df_already_processed = pd.read_json(appart_db_path, orient='columns')
         unprocessed_index = set(df.index) - set(df_already_processed.index)
         processed_index = set(df.index).intersection(df_already_processed.index)
         df.loc[processed_index, 'link'] = df_already_processed['link']
-        df.loc[processed_index, 'true_expired_at'] = df_already_processed['true_expired_at']
-
+        #df.loc[processed_index, 'true_expired_at'] = df_already_processed['true_expired_at']
     else:
         if os.path.exists(appart_db_path)==False:
             logger.warn('No preexisting database has been found, generating a new one.')
@@ -218,65 +215,57 @@ def get_all_links(session, df, expired, appart_db_path):
 
     if len(unprocessed_index)!=0:
         links = list(unprocessed_index.copy())
-        expiration_list = list(unprocessed_index.copy())
+        #expiration_list = list(unprocessed_index.copy())
         idx = 0
         for row_tuple in tqdm(df.iterrows(), total=len(df)) :
             response = get_appart_response(session, row_tuple)
-            true_expiration_date = expired_checker(response, row_tuple)
+            #true_expiration_date = expired_checker(response, row_tuple)
             true_url = response.url
             links[idx] = true_url
-            expiration_list[idx] = true_expiration_date
-            if true_expiration_date != None:
-                new_expired_list.append(row_tuple[0])
+            #expiration_list[idx] = true_expiration_date
+            #if true_expiration_date != None:
+            #    new_expired_list.append(row_tuple[0])
             idx += 1
-        
         #logger.debug(f'Index of the DF : {df.index}')
-
         df.loc[unprocessed_index, 'link'] = links
-        df.loc[unprocessed_index, 'true_expired_at'] = expiration_list
-        
+        #df.loc[unprocessed_index, 'true_expired_at'] = expiration_list
         df_to_append = df.loc[unprocessed_index, ['link']]
-
         df_already_processed = df_already_processed.append(df_to_append)
         df_already_processed.to_json(appart_db_path, orient='columns')
-
-        nb_expired = len(df[df['true_expired_at'].notna()])
-        logger.warn(f'{nb_expired} appartments have expired.')
-
-    return df, new_expired_list
+        #nb_expired = len(df[df['true_expired_at'].notna()])
+        #logger.warn(f'{nb_expired} appartments have expired.')
+    return df
 
 
-def remove_expired(session, df, new_expired_list, last_deleted_path):
-
-    df_expired = df.loc[new_expired_list, :]
-
+def remove_expired(session, df, last_deleted_path):
+    df_expired = df.loc[df["expired_at"].notna(), :]
+    if len(df_expired)>15:
+        logger.critical('Df slicing error')
+        exit()
     logger.info('Starting the cleaning of expired offers.')
-
     for appart_id, row in tqdm(df_expired.iterrows()):
         post_url = 'https://api.jinka.fr/apiv2/alert/' + row['alert_id'] + '/abuses'
         data = {'ad_id':appart_id, 'reason':'ad_link_404'}
         session.post(post_url, data=data)
     df_expired.to_json(last_deleted_path, orient='columns')
-    cleaned_df = df[df['true_expired_at'].isna()]
-    logger.info(f'Finished cleaning the {len(new_expired_list)} expired appartments.')
+    cleaned_df = df.loc[df['expired_at'].isna(), :]
+    logger.info(f'Finished cleaning the {len(df_expired)} expired appartments.')
     return cleaned_df
-
 
 def get_apparts(session, headers, alert_id, nb_pages):
     root_url = 'https://api.jinka.fr/apiv2/alert/' + str(alert_id) + '/dashboard' 
-
-    df_apparts = pd.DataFrame(columns= ['id', 'source', 'source_is_partner', 'source_logo', 'source_label', 'search_type', 'owner_type', 'rent', 'rent_max', 'area', 'room', 'bedroom', 'floor', 'type', 'buy_type', 'city', 'postal_code', 'lat', 'lng',  'furnished', 'description', 'description_is_truncated', 'images', 'created_at', 'expired_at', 'sendDate', 'previous_rent',  'previous_rent_at', 'favorite', 'nb_spam', 'contacted', 'stops', 'features', 'new_real_estate', 'rentMinPerM2', 'clicked_at', 'webview_link', 'alert_id', 'page'])
-
-    #for counter, page in enumerate(range(1, nb_pages+1)):
+    df_apparts = pd.DataFrame(columns= ['id', 'source', 'source_is_partner', 'source_logo', 'source_label', 'search_type', 'owner_type', \
+        'rent', 'rent_max', 'area', 'room', 'bedroom', 'floor', 'type', 'buy_type', 'city', 'postal_code', 'lat', 'lng',  'furnished', \
+        'description', 'description_is_truncated', 'images', 'created_at', 'expired_at', 'sendDate', 'previous_rent',  'previous_rent_at', \
+        'favorite', 'nb_spam', 'contacted', 'stops', 'features', 'new_real_estate', 'rentMinPerM2', 'clicked_at', 'webview_link', 'alert_id', \
+        'page'])
     for page in trange(1, nb_pages+1):
         target_url = root_url + f'?filter=all&page={page}'
         r_apparts = session.get(target_url, headers=headers)
         df_temp = pd.DataFrame.from_records(data=r_apparts.json()['ads'])
         df_temp['page'] = page
-        df_apparts = df_apparts.append(df_temp)
-    #    logger.info(f'{counter+1} / {nb_pages} pages have been processed.')   
+        df_apparts = df_apparts.append(df_temp)   
     return df_apparts
-
 
 def get_all_apparts(df_alerts, session, headers):
     df_final = pd.DataFrame(columns= ['id', 'source', 'source_is_partner', 'source_logo', 'source_label',
@@ -284,7 +273,6 @@ def get_all_apparts(df_alerts, session, headers):
       'city', 'postal_code', 'lat', 'lng',  'furnished', 'description', 'description_is_truncated', 'images',
        'created_at', 'expired_at', 'sendDate', 'previous_rent',  'previous_rent_at', 'favorite', 'nb_spam', 'contacted',
         'stops', 'features', 'new_real_estate', 'rentMinPerM2', 'clicked_at', 'webview_link', 'alert_id'])
-
     for idx, alert in df_alerts.iterrows():
         logger.info(f'Starting the processing of the apparts of alert n°{idx + 1}')
         alert_id = alert['id']
@@ -292,4 +280,7 @@ def get_all_apparts(df_alerts, session, headers):
         df_alert = get_apparts(session, headers, alert_id, nb_pages)
         df_final = df_final.append(df_alert)
         logger.info(f'Finished processing the apparts of alert n°{idx + 1}')
-    return df_final
+    df_final = df_final.set_index('id')
+    expired_index = df_final[df_final['expired_at'].notna()].index
+    logger.warning(f"{len(expired_index)} apparts have expired.")
+    return df_final, expired_index

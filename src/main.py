@@ -73,16 +73,15 @@ def run_all(email, password, expired):
         logger.critical('Aborting search, check your credentials.')
         quit()
     df_alerts = get_alerts(s, headers)
-    df_apparts = get_all_apparts(df_alerts, s, headers)
+    df_apparts, expired_index = get_all_apparts(df_alerts, s, headers)
     df_apparts = cleaner(df_apparts)
     df_apparts = features_engineering(df_apparts)
-    df_apparts = df_apparts.set_index('id')
     df_history = append_history_df(df_apparts, HISTORY_PATH)
     df_apparts = df_apparts.loc[~df_apparts.index.duplicated()]
-    df_apparts, new_expired_list = get_all_links(s, df_apparts, expired, APPARTS_DB_PATH)
+    df_apparts = get_all_links(s, df_apparts, expired, APPARTS_DB_PATH)
     if expired:
-        df_history = update_history_df(df_apparts, df_history, new_expired_list)
-        df_apparts = remove_expired(s, df_apparts, new_expired_list, LAST_DELETED_PATH)
+        df_history = update_history_df(df_apparts, df_history, expired_index)
+        df_apparts = remove_expired(s, df_apparts, LAST_DELETED_PATH)
     df_apparts.to_csv(APPARTS_CSV_PATH, sep=';', encoding='utf-8')
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -95,7 +94,7 @@ def run_all(email, password, expired):
 
     df_history.to_csv(HISTORY_PATH, sep=';', encoding='utf-8')
 
-    if upload==1:
+    if upload:
         uploader = Uploader(credentials_path=CREDS_PATH, token_file_path=TOKEN_FILE_PATH, secret_client_path=SECRET_CLIENT_PATH)
         uploader.push_table(df_apparts, spreadsheet_id='131UoWqQwZfydMJ3yqVe-L6TY6NKtJx8zVNppo034dT4', worksheet_name='apparts', index=True)
 

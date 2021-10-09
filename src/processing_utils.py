@@ -22,7 +22,6 @@ def cleaner(df, columns=['source_logo', 'source_label', 'search_type',
     df = df.drop(columns=columns_to_drop)
     return df
 
-
 def features_engineering(df):
     df['price_m2'] = df['rent'] / df['area']
     df['rent_evolution'] = df['previous_rent'] - df['rent']
@@ -40,8 +39,8 @@ def append_history_df(df, history_path, sep=';'):
     df_history = df_history.append(df_to_append)
     return df_history
 
-def update_history_df(df, df_history, new_expired_list):
-
-    updated_entries = df.loc[new_expired_list, :]
-    df_history.loc[new_expired_list, 'true_expired_at'] = updated_entries['true_expired_at']
+def update_history_df(df, df_history, expired_index):
+    index_to_update = set(df.index).intersection(set(expired_index))
+    updated_entries = df.loc[index_to_update, :]
+    df_history.loc[index_to_update, 'expired_at'] = updated_entries['expired_at']
     return df_history
